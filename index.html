@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PfR Quality Control</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F7F8FA;color:#1A2332;overscroll-behavior:none;min-height:100vh;}
+:root{--bg:#F7F8FA;--card:#fff;--border:#E2E6EC;--text:#1A2332;--muted:#6B7A8D;--accent:#1B4F8A;--aL:#EAF1FB;--green:#3B6D11;--gL:#EAF3DE;--red:#A32D2D;}
+
+/* Layout */
+.page{display:none;padding:16px 16px 120px;}
+.page.on{display:block;}
+.hdr{background:#fff;border-bottom:1px solid var(--border);padding:12px 16px 8px;position:sticky;top:0;z-index:20;}
+.hdr-row{display:flex;align-items:center;justify-content:space-between;}
+.hdr-title{font-size:15px;font-weight:700;color:var(--accent);}
+.hdr-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.badge{background:var(--aL);border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;color:var(--accent);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dots{display:flex;gap:5px;justify-content:center;margin-top:8px;}
+.dot{height:8px;border-radius:4px;width:8px;background:var(--border);transition:all .3s;}
+.dot.on{width:24px;background:var(--accent);}
+.dot.done{background:var(--green);}
+
+/* Cards */
+.card{background:#fff;border-radius:14px;border:1px solid var(--border);padding:16px;margin-bottom:12px;}
+.ttl{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;}
+.ttl-icon{font-size:20px;line-height:1.2;}
+.ttl-main{font-size:16px;font-weight:600;color:var(--text);}
+.ttl-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+
+/* Inputs */
+input[type=text],input[type=number]{width:100%;font-size:16px;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);outline:none;-webkit-appearance:none;appearance:none;}
+input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,79,138,.12);}
+
+/* Buttons */
+.btn{display:block;width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:600;border:none;cursor:pointer;margin-top:10px;text-align:center;-webkit-appearance:none;}
+.btn-blue{background:var(--accent);color:#fff;}
+.btn-green{background:var(--green);color:#fff;}
+.btn-out{background:transparent;border:1.5px solid var(--muted);color:var(--muted);}
+.btn-out-blue{background:transparent;border:1.5px solid var(--accent);color:var(--accent);}
+.btn-red{background:var(--red);color:#fff;}
+.back-bar{position:fixed;bottom:0;left:0;right:0;padding:10px 16px 28px;background:#fff;border-top:1px solid var(--border);z-index:10;}
+
+/* QRef pills */
+.qref-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pill{padding:14px 4px;border-radius:12px;border:2px solid var(--border);background:var(--bg);text-align:center;cursor:pointer;font-size:17px;font-weight:700;color:var(--muted);transition:all .15s;user-select:none;-webkit-user-select:none;}
+.pill.sel{border-color:var(--accent);background:var(--aL);color:var(--accent);}
+.pill-sub{font-size:10px;font-weight:400;display:block;margin-top:2px;opacity:.7;}
+
+/* Photo grid */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.pcell{aspect-ratio:1;border-radius:12px;border:2px dashed var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;cursor:pointer;}
+.pcell.filled{border:2px solid var(--green);cursor:default;}
+.pcell img{width:100%;height:100%;object-fit:cover;}
+.pdel{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;cursor:pointer;border:none;}
+
+/* Moisture */
+.mrow{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+.mrow:last-child{margin-bottom:0;}
+.mnum{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;transition:all .2s;}
+.mpct{font-size:14px;color:var(--muted);flex-shrink:0;}
+.avg-box{background:var(--aL);border:1px solid rgba(27,79,138,.2);border-radius:14px;padding:16px;text-align:center;margin-bottom:12px;}
+.avg-lbl{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.06em;}
+.avg-num{font-size:44px;font-weight:700;color:var(--accent);line-height:1;}
+.avg-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+
+/* Sliders */
+.sw{position:relative;height:84px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;}
+.st{position:absolute;left:0;right:0;top:20px;height:10px;border-radius:5px;background:var(--border);}
+.sf{height:100%;border-radius:5px;}
+.sticks{position:absolute;top:33px;left:0;right:0;}
+.snums{position:absolute;top:52px;left:0;right:0;display:flex;justify-content:space-between;}
+.snums span{font-size:11px;font-weight:500;color:var(--muted);}
+.sthumb{position:absolute;top:3px;width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid;display:flex;align-items:center;justify-content:center;pointer-events:none;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.sinner{width:22px;height:22px;border-radius:50%;}
+.scenter{text-align:center;padding-bottom:10px;}
+
+/* Stars */
+.stars{display:flex;justify-content:center;gap:10px;margin-top:14px;font-size:30px;}
+
+/* Voice */
+.vcenter{text-align:center;padding:8px 0;}
+audio{width:100%;border-radius:8px;margin-top:8px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.pulsing{animation:pulse 1s infinite;}
+
+/* Report rows */
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.rrow:last-child{border-bottom:none;}
+.rlbl{font-size:13px;color:var(--muted);}
+.rval{font-size:14px;font-weight:500;color:var(--text);text-align:right;max-width:60%;}
+.tag{background:var(--aL);color:var(--accent);border-radius:6px;padding:3px 8px;font-size:13px;font-weight:500;display:inline-block;margin:2px;}
+
+/* AI panel */
+#aipanel{background:linear-gradient(135deg,#1a4d87,#0c2a4e);border-radius:14px;padding:18px 16px;margin-bottom:12px;color:#fff;}
+.airow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:12px;}
+.airow:last-child{border-bottom:none;}
+.aibar{height:8px;border-radius:4px;background:rgba(255,255,255,.2);margin:8px 0;}
+.aibar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#E24B4A,#EF9F27,#63d820);transition:width .5s;}
+
+/* QR */
+#qrov{display:none;position:fixed;inset:0;background:#000;z-index:100;flex-direction:column;}
+#qrov.on{display:flex;}
+#qrhdr{padding:16px;display:flex;justify-content:space-between;align-items:center;}
+#qrvid{width:100%;height:100%;object-fit:cover;}
+#qrcvs{display:none;}
+#qrframe{position:absolute;width:220px;height:220px;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.5);pointer-events:none;}
+
+/* Hero */
+.hero{text-align:center;padding:12px 0 20px;}
+.hero-em{font-size:46px;}
+.hero-ttl{font-size:20px;font-weight:700;margin-top:6px;}
+.hero-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-row">
+    <div>
+      <div class="hdr-title">&#9851; PfR Quality Control</div>
+      <div class="hdr-sub" id="steplbl">Reference &middot; 1/7</div>
+    </div>
+    <div class="badge" id="refbadge">NEW</div>
+  </div>
+  <div class="dots" id="dotsbar"></div>
+</div>
+
+<!-- PAGE 0: REFERENCE -->
+<div class="page on" id="p0">
+  <div class="hero">
+    <div class="hero-em">&#9851;</div>
+    <div class="hero-ttl">New Inspection</div>
+    <div class="hero-sub" id="sid"></div>
+  </div>
+
+  <div class="card">
+    <div class="ttl"><span class="ttl-icon">&#127991;</span><div><div class="ttl-main">Batch Reference</div><div class="ttl-sub">Scan QR code or type manually</div></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="refinput" placeholder="e.g. PFR-2024-001" oninput="onRef()" style="flex:1;">
+      <button onclick="openQR()" style="padding:11px 13px;border-radius:10px;border:1px solid var(--border);background:var(--aL);color:var(--accent);cursor:pointer;font-size:18px;flex-shrink:0;">&#128247;</button>
+    </div>
+    <div id="refok" style="font-size:13px;color:var(--green);display:none;">&#10003; <span id="refokval"></span></div>
+  </div>
+
+  <div class="card">
+    <div class="ttl"><span class="ttl-icon">&#128203;</span><div><div class="ttl-main">Quality Reference</div><div class="ttl-sub">Select the applicable standard</div></div></div>
+    <div class="qref-grid">
+      <div class="pill" id="qr102" onclick="pickQRef('1.02')">1.02<span class="pill-sub">Std A</span></div>
+      <div class="pill" id="qr105" onclick="pickQRef('1.05')">1.05<span class="pill-sub">Std B</span></div>
+      <div class="pill" id="qr205" onclick="pickQRef('2.05')">2.05<span class="pill-sub">Std C</span></div>
+      <div class="pill" id="qr206" onclick="pickQRef('2.06')">2.06<span class="pill-sub">Std D</span></div>
+      <div class="pill" id="qr305" onclick="pickQRef('3.05')">3.05<span class="pill-sub">Std E</span></div>
+    </div>
+    <div id="qrefok" style="font-size:13px;color:var(--accent);margin-top:10px;display:none;">Selected: <strong id="qrefval"></strong></div>
+  </div>
+
+  <div class="card">
+    <div class="ttl"><span class="ttl-icon">&#128100;</span><div><div class="ttl-main">Operator</div></div></div>
+    <input type="text" id="opinput" placeholder="Your name">
+  </div>
+
+  <div class="card">
+    <div class="ttl"><span class="ttl-icon">&#128205;</span><div><div class="ttl-main">Location / Plant</div></div></div>
+    <input type="text" id="locinput" placeholder="Facility or site name">
+  </div>
+
+  <button class="btn btn-blue" id="btn-start" onclick="goTo(1)">Start Inspection &#8594;</button>
+</div>
+
+<!-- PAGE 1: PHOTOS -->
+<div class="page" id="p1">
+  <div class="ttl"><span class="ttl-icon">&#128248;</span><div><div class="ttl-main">Take 5 photos</div><div class="ttl-sub" id="photolbl">0/5 captured</div></div></div>
+  <div class="pgrid" id="pgrid"></div>
+  <input type="file" id="filein" accept="image/*" capture="environment" style="display:none;" onchange="onPhoto(event)">
+  <button class="btn btn-blue" id="photobtn">&#128247; Add photo (0/5)</button>
+  <button class="btn btn-out" id="photoskip" style="display:none;" onclick="goTo(2)">Continue &#8594;</button>
+  <div class="back-bar"><button class="btn btn-out" onclick="goTo(0)">&#8592; Back</button></div>
+</div>
+
+<!-- PAGE 2: MOISTURE -->
+<div class="page" id="p2">
+  <div class="ttl"><span class="ttl-icon">&#128167;</span><div><div class="ttl-main">Moisture readings</div><div class="ttl-sub">Enter 5 values in %</div></div></div>
+  <div class="card">
+    <div class="mrow"><div class="mnum" id="mn1" style="background:var(--aL);color:var(--accent);">1</div><input type="number" inputmode="decimal" id="m1" placeholder="Reading 1" oninput="onMoist()"><span class="mpct">%</span></div>
+    <div class="mrow"><div class="mnum" id="mn2" style="background:var(--aL);color:var(--accent);">2</div><input type="number" inputmode="decimal" id="m2" placeholder="Reading 2" oninput="onMoist()"><span class="mpct">%</span></div>
+    <div class="mrow"><div class="mnum" id="mn3" style="background:var(--aL);color:var(--accent);">3</div><input type="number" inputmode="decimal" id="m3" placeholder="Reading 3" oninput="onMoist()"><span class="mpct">%</span></div>
+    <div class="mrow"><div class="mnum" id="mn4" style="background:var(--aL);color:var(--accent);">4</div><input type="number" inputmode="decimal" id="m4" placeholder="Reading 4" oninput="onMoist()"><span class="mpct">%</span></div>
+    <div class="mrow"><div class="mnum" id="mn5" style="background:var(--aL);color:var(--accent);">5</div><input type="number" inputmode="decimal" id="m5" placeholder="Reading 5" oninput="onMoist()"><span class="mpct">%</span></div>
+  </div>
+  <div class="avg-box" id="avgbox" style="display:none;">
+    <div class="avg-lbl">AVERAGE MOISTURE</div>
+    <div class="avg-num" id="avgnum">-</div>
+    <div class="avg-sub" id="avgsub"></div>
+  </div>
+  <button class="btn btn-blue" onclick="goTo(3)">Next: Unsatisfactory bales &#8594;</button>
+  <div class="back-bar"><button class="btn btn-out" onclick="goTo(1)">&#8592; Back</button></div>
+</div>
+
+<!-- PAGE 3: BALES SLIDER -->
+<div class="page" id="p3">
+  <div class="ttl"><span class="ttl-icon">&#128230;</span><div><div class="ttl-main">Unsatisfactory bales</div><div class="ttl-sub">Slide to count &mdash; higher = more critical</div></div></div>
+  <div class="card">
+    <div class="scenter">
+      <div id="bicon" style="font-size:48px;line-height:1;margin-bottom:6px;">&#9989;</div>
+      <div><span id="bval" style="font-size:58px;font-weight:600;color:#3B6D11;">0</span><span id="bmax" style="font-size:24px;color:#3B6D11;"> / 25</span></div>
+      <div id="blbl" style="font-size:15px;font-weight:500;margin-top:4px;color:#3B6D11;">No issue</div>
+    </div>
+    <div class="sw" id="bsw">
+      <div class="st" id="bst"><div class="sf" id="bsf" style="width:0%;background:#3B6D11;"></div></div>
+      <div class="sticks" id="bsticks"></div>
+      <div class="snums" id="bsnums"></div>
+      <div class="sthumb" id="bsthumb" style="left:0%;border-color:#3B6D11;"><div class="sinner" id="bsinner" style="background:#3B6D11;"></div></div>
+    </div>
+  </div>
+  <button class="btn btn-blue" onclick="goTo(4)">Next: Rate quality &#8594;</button>
+  <div class="back-bar"><button class="btn btn-out" onclick="goTo(2)">&#8592; Back</button></div>
+</div>
+
+<!-- PAGE 4: QUALITY SLIDER -->
+<div class="page" id="p4">
+  <div class="ttl"><span class="ttl-icon">&#11088;</span><div><div class="ttl-main">Quality rating</div><div class="ttl-sub">Drag the slider &mdash; 0 to 5 by 0.1</div></div></div>
+  <div class="card">
+    <div class="scenter">
+      <div id="qemoji" style="font-size:50px;line-height:1;margin-bottom:6px;">&#128528;</div>
+      <div><span id="qval" style="font-size:58px;font-weight:600;color:#EF9F27;">2.5</span><span id="qmax" style="font-size:24px;color:#EF9F27;">/5</span></div>
+      <div id="qlbl" style="font-size:15px;font-weight:500;margin-top:4px;color:#EF9F27;">Average</div>
+    </div>
+    <div class="sw" id="qsw">
+      <div class="st" id="qst"><div class="sf" id="qsf" style="width:50%;"></div></div>
+      <div class="sticks" id="qsticks"></div>
+      <div class="snums" id="qsnums"></div>
+      <div class="sthumb" id="qsthumb" style="left:50%;border-color:#EF9F27;"><div class="sinner" id="qsinner" style="background:#EF9F27;"></div></div>
+    </div>
+    <div class="stars" id="qstars">
+      <span data-i="1" style="color:#ddd;">&#9733;</span><span data-i="2" style="color:#ddd;">&#9733;</span>
+      <span data-i="3" style="color:#ddd;">&#9733;</span><span data-i="4" style="color:#ddd;">&#9733;</span>
+      <span data-i="5" style="color:#ddd;">&#9733;</span>
+    </div>
+  </div>
+  <button class="btn btn-blue" onclick="goTo(5)">Next: Voice comment &#8594;</button>
+  <div class="back-bar"><button class="btn btn-out" onclick="goTo(3)">&#8592; Back</button></div>
+</div>
+
+<!-- PAGE 5: VOICE -->
+<div class="page" id="p5">
+  <div class="ttl"><span class="ttl-icon">&#127897;</span><div><div class="ttl-main">Voice comment</div><div class="ttl-sub">Optional &mdash; record your observations</div></div></div>
+  <div class="card vcenter" id="vidle">
+    <div style="font-size:52px;margin-bottom:10px;">&#127908;</div>
+    <div style="color:var(--muted);font-size:14px;margin-bottom:16px;">Tap to record observations about this batch.</div>
+    <button class="btn btn-blue" onclick="startRec()">&#9210; Start recording</button>
+  </div>
+  <div class="card vcenter" id="vrec" style="display:none;">
+    <div style="font-size:52px;margin-bottom:8px;" class="pulsing">&#128308;</div>
+    <div style="color:var(--red);font-weight:600;font-size:15px;margin-bottom:16px;">Recording in progress&hellip;</div>
+    <button class="btn btn-red" onclick="stopRec()">&#9209; Stop recording</button>
+  </div>
+  <div class="card vcenter" id="vdone" style="display:none;">
+    <div style="font-size:42px;margin-bottom:8px;">&#9989;</div>
+    <div style="color:var(--green);font-weight:600;font-size:15px;margin-bottom:10px;">Recording saved</div>
+    <audio id="vplayer" controls></audio>
+    <button class="btn btn-out" onclick="resetRec()" style="margin-top:12px;">&#128260; Re-record</button>
+  </div>
+  <button class="btn btn-green" onclick="finish()">Finish &amp; view report &#8594;</button>
+  <button class="btn btn-out" id="skipvoice" onclick="finish()">Skip voice note &#8594;</button>
+  <div class="back-bar"><button class="btn btn-out" onclick="goTo(4)">&#8592; Back</button></div>
+</div>
+
+<!-- PAGE 6: REPORT -->
+<div class="page" id="p6">
+  <div class="hero">
+    <div class="hero-em">&#128203;</div>
+    <div class="hero-ttl">Inspection Report</div>
+    <div class="hero-sub" id="rmeta"></div>
+    <div style="font-size:13px;margin-top:5px;" id="rstatus"></div>
+  </div>
+  <div class="card">
+    <div class="rrow"><span class="rlbl">Reference</span><span class="rval" id="r-ref">-</span></div>
+    <div class="rrow"><span class="rlbl">Quality Standard</span><span class="rval" id="r-qref" style="color:var(--accent);font-weight:700;">-</span></div>
+    <div class="rrow"><span class="rlbl">Operator</span><span class="rval" id="r-op">-</span></div>
+    <div class="rrow"><span class="rlbl">Location</span><span class="rval" id="r-loc">-</span></div>
+    <div class="rrow"><span class="rlbl">Date</span><span class="rval" id="r-date">-</span></div>
+  </div>
+  <div class="card">
+    <div class="rrow"><span class="rlbl">&#128248; Photos</span><span class="rval" id="r-photos">-</span></div>
+    <div id="r-thumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"></div>
+  </div>
+  <div class="card">
+    <div class="rrow"><span class="rlbl">&#128167; Moisture avg</span><span class="rval" id="r-avg" style="color:var(--accent);font-weight:700;">-</span></div>
+    <div id="r-mtags" style="margin-top:8px;"></div>
+  </div>
+  <div class="card">
+    <div class="rrow"><span class="rlbl">&#128230; Unsatisf. bales</span><span class="rval" id="r-bales" style="font-weight:700;">-</span></div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;margin-bottom:4px;">QUALITY SCORE</div>
+    <div style="font-size:54px;font-weight:700;line-height:1;" id="r-score">-</div>
+    <div style="font-size:16px;font-weight:500;margin-top:4px;" id="r-slbl">-</div>
+    <div class="stars" id="r-stars"></div>
+  </div>
+  <div class="card" id="r-vcard" style="display:none;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">&#127908; Voice note</div>
+    <audio id="r-vplay" controls></audio>
+  </div>
+
+  <!-- AI Panel -->
+  <div id="aipanel">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="font-size:22px;">&#129302;</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;letter-spacing:.04em;">AI PREDICTION</div>
+        <div style="font-size:11px;opacity:.7;" id="aitrained">Not enough data yet</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:6px;">
+      <div style="font-size:52px;font-weight:700;line-height:1;" id="aipred">-</div>
+      <div style="font-size:16px;opacity:.8;margin-bottom:10px;">/5</div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-size:11px;opacity:.7;">Confidence</div>
+        <div style="font-size:20px;font-weight:600;" id="aiconf">-</div>
+      </div>
+    </div>
+    <div class="aibar"><div class="aibar-fill" id="aibarfill" style="width:0%;"></div></div>
+    <div style="font-size:12px;opacity:.7;margin-top:6px;" id="aicomment">Complete at least 3 inspections to enable AI predictions.</div>
+  </div>
+
+  <div class="card" id="aihist" style="display:none;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">&#128202; Training history (<span id="aicount">0</span> sessions)</div>
+    <div id="aihistlist"></div>
+  </div>
+
+  <button class="btn btn-blue" onclick="sendEmail()">&#128231; Share report by email</button>
+  <button class="btn btn-out-blue" onclick="resetAll()">+ New inspection</button>
+</div>
+
+<!-- QR OVERLAY -->
+<div id="qrov">
+  <div id="qrhdr">
+    <span style="color:#fff;font-weight:600;font-size:16px;">Scan QR Code</span>
+    <button onclick="closeQR()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer;">Cancel</button>
+  </div>
+  <div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;">
+    <video id="qrvid" muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+    <canvas id="qrcvs" style="display:none;"></canvas>
+    <div id="qrframe"></div>
+    <div style="position:absolute;bottom:40px;color:#fff;font-size:14px;" id="qrhint">Point camera at QR code</div>
+    <div style="position:absolute;color:#fff;font-size:14px;text-align:center;padding:24px;display:none;" id="qrerr"></div>
+  </div>
+</div>
+
+<script>
+// ── State
+const SID = "PFR-" + Date.now().toString(36).toUpperCase();
+let cur = 0, photos = [], qval = 2.5, bval = 0, qref = null;
+let vblob = null, vurl = null, mrec = null, chunks = [], qrs = null, qrraf = null;
+
+const NAMES = ["Reference","Photos","Moisture","Bales","Quality","Voice","Report"];
+
+document.getElementById("sid").textContent = "Session " + SID;
+document.getElementById("refbadge").textContent = SID;
+
+// ── Navigation
+function goTo(n) {
+  document.getElementById("p"+cur).classList.remove("on");
+  cur = n;
+  document.getElementById("p"+cur).classList.add("on");
+  renderDots();
+  window.scrollTo(0,0);
+}
+
+function renderDots() {
+  const bar = document.getElementById("dotsbar"); bar.innerHTML = "";
+  for (let i=0; i<7; i++) {
+    const d = document.createElement("div");
+    d.className = "dot" + (i===cur?" on": i<cur?" done":"");
+    bar.appendChild(d);
+  }
+  document.getElementById("steplbl").textContent = NAMES[cur] + " \u00b7 " + (cur+1) + "/7";
+}
+renderDots();
+
+// ── QRef
+function pickQRef(v) {
+  qref = v;
+  ["1.02","1.05","2.05","2.06","3.05"].forEach(k => {
+    document.getElementById("qr"+k.replace(".","")).classList.remove("sel");
+  });
+  document.getElementById("qr"+v.replace(".","")).classList.add("sel");
+  document.getElementById("qrefok").style.display = "block";
+  document.getElementById("qrefval").textContent = v;
+}
+
+// ── Batch ref
+function onRef() {
+  const v = document.getElementById("refinput").value.trim();
+  document.getElementById("refokval").textContent = v;
+  document.getElementById("refok").style.display = v ? "block" : "none";
+  document.getElementById("refbadge").textContent = v || SID;
+}
+
+// ── QR Scanner
+async function openQR() {
+  document.getElementById("qrov").classList.add("on");
+  document.getElementById("qrerr").style.display = "none";
+  document.getElementById("qrhint").style.display = "block";
+  try {
+    qrs = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    const v = document.getElementById("qrvid"); v.srcObject = qrs; await v.play(); scanQR();
+  } catch(e) {
+    document.getElementById("qrhint").style.display = "none";
+    document.getElementById("qrerr").style.display = "block";
+    document.getElementById("qrerr").textContent = "Camera access denied. Allow camera in Safari Settings.";
+  }
+}
+function scanQR() {
+  const v=document.getElementById("qrvid"), c=document.getElementById("qrcvs");
+  if (v.readyState < 2) { qrraf=requestAnimationFrame(scanQR); return; }
+  c.width=v.videoWidth; c.height=v.videoHeight;
+  const ctx=c.getContext("2d"); ctx.drawImage(v,0,0);
+  try { if(window.jsQR){const r=window.jsQR(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height);if(r&&r.data){document.getElementById("refinput").value=r.data;onRef();closeQR();return;}}} catch{}
+  qrraf=requestAnimationFrame(scanQR);
+}
+function closeQR() {
+  if(qrraf)cancelAnimationFrame(qrraf);
+  if(qrs)qrs.getTracks().forEach(t=>t.stop());
+  qrs=null; document.getElementById("qrov").classList.remove("on"); document.getElementById("qrvid").srcObject=null;
+}
+
+// ── Photos
+function onPhoto(e) {
+  const f=e.target.files[0]; if(!f||photos.length>=5)return;
+  const r=new FileReader(); r.onload=ev=>{photos.push(ev.target.result);buildGrid();}; r.readAsDataURL(f); e.target.value="";
+}
+function buildGrid() {
+  const g=document.getElementById("pgrid"); g.innerHTML="";
+  for(let i=0;i<5;i++){
+    const c=document.createElement("div"); c.className="pcell"+(photos[i]?" filled":"");
+    if(photos[i]){
+      const im=document.createElement("img"); im.src=photos[i]; im.alt="Photo"+(i+1); c.appendChild(im);
+      const d=document.createElement("button"); d.className="pdel"; d.innerHTML="&times;";
+      d.onclick=ev=>{ev.stopPropagation();photos.splice(i,1);buildGrid();}; c.appendChild(d);
+    } else {
+      c.innerHTML="<div style='text-align:center'><div style='font-size:24px;color:"+(i===photos.length?"var(--accent)":"var(--border)")+"'>"+(i===photos.length?"+":"&circ;")+"</div><div style='font-size:11px;color:var(--muted)'>#"+(i+1)+"</div></div>";
+      if(i===photos.length) c.onclick=()=>document.getElementById("filein").click();
+    }
+    g.appendChild(c);
+  }
+  document.getElementById("photolbl").textContent = photos.length+"/5 captured";
+  const ab=document.getElementById("photobtn"), sk=document.getElementById("photoskip");
+  if(photos.length>=5){
+    ab.textContent="All photos done \u2713  Continue \u2192"; ab.className="btn btn-green"; ab.onclick=()=>goTo(2);
+    sk.style.display="none";
+  } else {
+    ab.textContent="&#128247; Add photo ("+photos.length+"/5)"; ab.className="btn btn-blue"; ab.onclick=()=>document.getElementById("filein").click();
+    sk.style.display=photos.length>0?"block":"none";
+    sk.textContent="Continue with "+photos.length+" photo"+(photos.length!==1?"s":"")+" \u2192";
+  }
+}
+buildGrid();
+
+// ── Moisture
+function onMoist() {
+  const vs=[1,2,3,4,5].map(i=>{
+    const v=parseFloat(document.getElementById("m"+i).value);
+    const n=document.getElementById("mn"+i);
+    n.style.background=!isNaN(v)?"var(--gL)":"var(--aL)"; n.style.color=!isNaN(v)?"var(--green)":"var(--accent)";
+    return v;
+  }).filter(v=>!isNaN(v));
+  const box=document.getElementById("avgbox");
+  if(vs.length){const a=vs.reduce((a,b)=>a+b)/vs.length;document.getElementById("avgnum").textContent=a.toFixed(2)+"%";document.getElementById("avgsub").textContent="from "+vs.length+" reading"+(vs.length>1?"s":"");box.style.display="block";}
+  else box.style.display="none";
+}
+
+// ── Slider factory
+function mkSlider(cfg) {
+  // cfg: swId, stId, sfId, sticksId, snumsId, thumbId, innerId, min, max, step, init, majorNums, getColor, onVal
+  let v=cfg.init, drag=false;
+  const STEPS=(cfg.max-cfg.min)/cfg.step;
+
+  // Build ticks
+  const tk=document.getElementById(cfg.sticksId); tk.innerHTML="";
+  const nm=document.getElementById(cfg.snumsId); nm.innerHTML="";
+  for(let i=0;i<=STEPS;i++){
+    const val=cfg.min+i*cfg.step;
+    const isMaj=cfg.majorNums.some(n=>Math.abs(n-val)<cfg.step*0.01);
+    const isMid=!isMaj&&(i%Math.round(STEPS/10)===0);
+    const d=document.createElement("div");
+    d.style.cssText="position:absolute;left:"+(i/STEPS*100)+"%;transform:translateX(-50%);width:"+(isMaj?2:1)+"px;height:"+(isMaj?14:isMid?9:4)+"px;background:#ccc;top:0;";
+    d.dataset.i=i; tk.appendChild(d);
+  }
+  cfg.majorNums.forEach(n=>{const s=document.createElement("span");s.dataset.n=n;s.textContent=n;nm.appendChild(s);});
+
+  function pct(){return(v-cfg.min)/(cfg.max-cfg.min)*100;}
+  function refresh(){
+    const c=cfg.getColor(v), p=pct();
+    document.getElementById(cfg.sfId).style.width=p+"%"; document.getElementById(cfg.sfId).style.background=c;
+    document.getElementById(cfg.thumbId).style.left=p+"%"; document.getElementById(cfg.thumbId).style.borderColor=c;
+    document.getElementById(cfg.innerId).style.background=c;
+    tk.querySelectorAll("div").forEach(d=>{d.style.background=(cfg.min+parseInt(d.dataset.i)*cfg.step)<=v?c:"#ccc";});
+    nm.querySelectorAll("span").forEach(s=>{s.style.color=parseFloat(s.dataset.n)<=v?c:"var(--muted)";});
+    cfg.onVal(v,c);
+  }
+  function fromX(cx){
+    const rect=document.getElementById(cfg.stId).getBoundingClientRect();
+    const ratio=Math.max(0,Math.min(1,(cx-rect.left)/rect.width));
+    v=cfg.min+Math.round(ratio*STEPS)*cfg.step; v=Math.max(cfg.min,Math.min(cfg.max,v)); refresh();
+  }
+  const sw=document.getElementById(cfg.swId);
+  sw.addEventListener("mousedown",e=>{drag=true;fromX(e.clientX);});
+  window.addEventListener("mousemove",e=>{if(drag)fromX(e.clientX);});
+  window.addEventListener("mouseup",()=>{drag=false;});
+  sw.addEventListener("touchstart",e=>{drag=true;fromX(e.touches[0].clientX);},{passive:true});
+  sw.addEventListener("touchmove",e=>{e.preventDefault();fromX(e.touches[0].clientX);},{passive:false});
+  sw.addEventListener("touchend",()=>{drag=false;},{passive:true});
+  refresh();
+  return{get:()=>v, set:n=>{v=n;refresh();}};
+}
+
+// ── Bale slider
+function baleColor(v){const t=v/25;return"rgb("+Math.round(59+(226-59)*t)+","+Math.round(109+(75-109)*t)+","+Math.round(17+(74-17)*t)+")";}
+function baleLabel(v){if(v===0)return{l:"No issue",ic:"&#9989;"};if(v<=3)return{l:"Minor",ic:"&#128993;"};if(v<=7)return{l:"Notable",ic:"&#128992;"};if(v<=12)return{l:"Significant",ic:"&#9888;&#65039;"};if(v<=18)return{l:"High concern",ic:"&#128308;"};return{l:"Critical",ic:"&#128680;"};}
+const BS=mkSlider({swId:"bsw",stId:"bst",sfId:"bsf",sticksId:"bsticks",snumsId:"bsnums",thumbId:"bsthumb",innerId:"bsinner",min:0,max:25,step:1,init:0,majorNums:[0,5,10,15,20,25],getColor:baleColor,onVal:(v,c)=>{bval=v;const{l,ic}=baleLabel(v);document.getElementById("bval").textContent=v;document.getElementById("bval").style.color=c;document.getElementById("bmax").style.color=c;document.getElementById("blbl").textContent=l;document.getElementById("blbl").style.color=c;document.getElementById("bicon").innerHTML=ic;}});
+
+// ── Quality slider
+function qColor(v){const t=v/5;if(t<=.5){const tt=t/.5;return"rgb("+Math.round(226+(239-226)*tt)+","+Math.round(75+(159-75)*tt)+","+Math.round(74+(39-74)*tt)+")";}const tt=(t-.5)/.5;return"rgb("+Math.round(239+(59-239)*tt)+","+Math.round(159+(109-159)*tt)+","+Math.round(39+(17-39)*tt)+")";}
+function qLabel(v){if(v<=0.5)return{l:"Very poor",e:"&#128545;"};if(v<=1)return{l:"Poor",e:"&#128542;"};if(v<=1.5)return{l:"Insufficient",e:"&#128533;"};if(v<=2)return{l:"Mediocre",e:"&#128528;"};if(v<=2.5)return{l:"Average",e:"&#128528;"};if(v<=3)return{l:"Acceptable",e:"&#128578;"};if(v<=3.5)return{l:"Correct",e:"&#128522;"};if(v<=4)return{l:"Good",e:"&#128516;"};if(v<=4.5)return{l:"Very good",e:"&#128516;"};return{l:"Excellent",e:"&#129321;"};}
+const QS=mkSlider({swId:"qsw",stId:"qst",sfId:"qsf",sticksId:"qsticks",snumsId:"qsnums",thumbId:"qsthumb",innerId:"qsinner",min:0,max:5,step:0.1,init:2.5,majorNums:[0,1,2,3,4,5],getColor:qColor,onVal:(v,c)=>{qval=v;const{l,e}=qLabel(v);document.getElementById("qval").textContent=v.toFixed(1);document.getElementById("qval").style.color=c;document.getElementById("qmax").style.color=c;document.getElementById("qlbl").textContent=l;document.getElementById("qlbl").style.color=c;document.getElementById("qemoji").innerHTML=e;document.querySelectorAll("#qstars span").forEach(s=>{const lit=v>=parseInt(s.dataset.i)-.05;s.style.color=lit?c:"#ddd";s.style.transform=lit?"scale(1.15)":"scale(1)";});}});
+
+// ── Voice
+async function startRec(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    chunks=[];
+    const mt=MediaRecorder.isTypeSupported("audio/mp4")?"audio/mp4":MediaRecorder.isTypeSupported("audio/webm")?"audio/webm":"";
+    mrec=mt?new MediaRecorder(stream,{mimeType:mt}):new MediaRecorder(stream);
+    mrec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+    mrec.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      vblob=new Blob(chunks,{type:mrec.mimeType||"audio/webm"});
+      vurl=URL.createObjectURL(vblob);
+      document.getElementById("vplayer").src=vurl;
+      document.getElementById("vrec").style.display="none";
+      document.getElementById("vdone").style.display="block";
+      document.getElementById("skipvoice").style.display="none";
+    };
+    mrec.start(100);
+    document.getElementById("vidle").style.display="none";
+    document.getElementById("vrec").style.display="block";
+  }catch(e){alert("Microphone access denied.\n\nGo to Safari Settings \u2192 Privacy \u2192 Microphone.");}
+}
+function stopRec(){if(mrec&&mrec.state!=="inactive")mrec.stop();}
+function resetRec(){vblob=null;vurl=null;document.getElementById("vdone").style.display="none";document.getElementById("vidle").style.display="block";document.getElementById("skipvoice").style.display="block";}
+
+// ── AI
+const AIKEY="pfr_ai_v1";
+function loadAI(){try{return JSON.parse(localStorage.getItem(AIKEY)||"[]");}catch{return[];}}
+function saveAI(d){try{localStorage.setItem(AIKEY,JSON.stringify(d.slice(-100)));}catch{}}
+function aiPredict(f){
+  const data=loadAI(); if(data.length<3)return null;
+  const wd=data.map(d=>{const dm=Math.abs((d.m||0)-(f.m||0))/20,db=Math.abs((d.b||0)-(f.b||0))/25,dq=d.q===f.q?0:.3;return{s:d.qs,dist:dm+db+dq};});
+  wd.sort((a,b)=>a.dist-b.dist);
+  const k=Math.min(5,wd.length),nb=wd.slice(0,k),tw=nb.reduce((s,n)=>s+1/(n.dist+.01),0);
+  const pred=nb.reduce((s,n)=>s+n.s/(n.dist+.01),0)/tw;
+  const conf=Math.max(20,Math.min(95,Math.round(60+data.length*2-wd[0].dist*30)));
+  return{pred:Math.max(0,Math.min(5,pred)),conf,n:data.length};
+}
+function renderAI(){
+  const vs=[1,2,3,4,5].map(i=>parseFloat(document.getElementById("m"+i).value)).filter(v=>!isNaN(v));
+  const ma=vs.length?vs.reduce((a,b)=>a+b)/vs.length:0;
+  const res=aiPredict({m:ma,b:bval,q:qref});
+  const data=loadAI();
+  if(!res){
+    document.getElementById("aipred").textContent="-"; document.getElementById("aiconf").textContent="-";
+    document.getElementById("aibarfill").style.width="0%";
+    document.getElementById("aicomment").textContent="Complete at least 3 inspections to enable AI predictions.";
+    document.getElementById("aitrained").textContent="Not enough data yet ("+data.length+"/3 needed)";
+  } else {
+    document.getElementById("aipred").textContent=res.pred.toFixed(1);
+    document.getElementById("aiconf").textContent=res.conf+"%";
+    document.getElementById("aibarfill").style.width=(res.pred/5*100)+"%";
+    const diff=Math.abs(res.pred-qval);
+    document.getElementById("aicomment").textContent=diff<=.3?"&#10003; Prediction matches your rating closely.":diff<=.8?"Close prediction \u2014 model is learning your patterns.":"Notable difference \u2014 model will improve with more data.";
+    document.getElementById("aitrained").textContent="Trained on "+res.n+" inspection"+(res.n>1?"s":"");
+  }
+  if(data.length>0){
+    document.getElementById("aihist").style.display="block";
+    document.getElementById("aicount").textContent=data.length;
+    const ul=document.getElementById("aihistlist"); ul.innerHTML="";
+    data.slice(-5).reverse().forEach(d=>{
+      const row=document.createElement("div"); row.className="airow";
+      row.innerHTML="<span style='opacity:.6;'>"+new Date(d.date).toLocaleDateString()+"</span><span style='flex:1;margin:0 8px;opacity:.8;'>"+(d.q||"-")+" \u00b7 "+d.b+" bales \u00b7 "+(d.m||0).toFixed(1)+"%</span><span style='font-weight:700;color:#fff;'>"+d.qs.toFixed(1)+"</span>";
+      ul.appendChild(row);
+    });
+  }
+}
+
+// ── Finish
+function finish(){
+  const vs=[1,2,3,4,5].map(i=>parseFloat(document.getElementById("m"+i).value)).filter(v=>!isNaN(v));
+  const ma=vs.length?vs.reduce((a,b)=>a+b)/vs.length:null;
+  const data=loadAI();
+  data.push({date:new Date().toISOString(),sid:SID,q:qref,m:ma,b:bval,qs:qval});
+  saveAI(data);
+  buildReport();
+  goTo(6);
+}
+
+function buildReport(){
+  const ref=document.getElementById("refinput").value.trim()||SID;
+  const op=document.getElementById("opinput").value.trim();
+  const loc=document.getElementById("locinput").value.trim();
+  document.getElementById("r-ref").textContent=ref||"-";
+  document.getElementById("r-qref").textContent=qref||"-";
+  document.getElementById("r-op").textContent=op||"-";
+  document.getElementById("r-loc").textContent=loc||"-";
+  document.getElementById("r-date").textContent=new Date().toLocaleString();
+  document.getElementById("rmeta").textContent=SID+" \u00b7 "+new Date().toLocaleDateString();
+  document.getElementById("r-photos").textContent=photos.length+"/5";
+  const th=document.getElementById("r-thumbs"); th.innerHTML="";
+  photos.forEach(p=>{const i=document.createElement("img");i.src=p;i.style.cssText="width:50px;height:50px;object-fit:cover;border-radius:8px;border:1px solid var(--border)";th.appendChild(i);});
+  const mvs=[1,2,3,4,5].map(i=>parseFloat(document.getElementById("m"+i).value)).filter(v=>!isNaN(v));
+  const avg=mvs.length?mvs.reduce((a,b)=>a+b)/mvs.length:null;
+  document.getElementById("r-avg").textContent=avg!==null?avg.toFixed(2)+"%":"-";
+  const mt=document.getElementById("r-mtags"); mt.innerHTML="";
+  [1,2,3,4,5].forEach(i=>{const v=document.getElementById("m"+i).value;if(v){const s=document.createElement("span");s.className="tag";s.textContent=parseFloat(v).toFixed(1)+"%";mt.appendChild(s);}});
+  const bc=document.getElementById("r-bales"),bc2=baleLabel(bval);
+  bc.textContent=bval+" bale"+(bval!==1?"s":"")+" \u2014 "+bc2.l; bc.style.color=baleColor(bval);
+  const c=qColor(qval),{l,e}=qLabel(qval);
+  document.getElementById("r-score").textContent=qval.toFixed(1)+"/5"; document.getElementById("r-score").style.color=c;
+  document.getElementById("r-slbl").textContent=l+" "+e; document.getElementById("r-slbl").style.color=c;
+  const rs=document.getElementById("r-stars"); rs.innerHTML="";
+  for(let i=1;i<=5;i++){const s=document.createElement("span");s.textContent="\u2605";s.style.cssText="font-size:28px;color:"+(qval>=i-.05?c:"#ddd");rs.appendChild(s);}
+  if(vurl){document.getElementById("r-vcard").style.display="block";document.getElementById("r-vplay").src=vurl;}
+  document.getElementById("rstatus").textContent="\u2713 Report ready \u00b7 Session saved for AI training";
+  document.getElementById("rstatus").style.color="var(--green)";
+  renderAI();
+}
+
+// ── Email
+function sendEmail(){
+  const ref=document.getElementById("refinput").value.trim()||SID;
+  const op=document.getElementById("opinput").value.trim();
+  const loc=document.getElementById("locinput").value.trim();
+  const mvs=[1,2,3,4,5].map(i=>({i,v:document.getElementById("m"+i).value}));
+  const nums=mvs.map(x=>parseFloat(x.v)).filter(v=>!isNaN(v));
+  const avg=nums.length?nums.reduce((a,b)=>a+b)/nums.length:null;
+  const {l}=qLabel(qval), {l:bl}=baleLabel(bval);
+  const body=[
+    "PfR QUALITY CONTROL REPORT","===========================",
+    "Session ID       : "+SID,
+    "Reference        : "+(ref||"-"),
+    "Quality Standard : "+(qref||"-"),
+    "Date             : "+new Date().toLocaleString(),
+    "Operator         : "+(op||"-"),
+    "Location         : "+(loc||"-"),
+    "","PHOTOS           : "+photos.length+"/5",
+    "","MOISTURE READINGS",
+    ...mvs.map(x=>"  #"+x.i+" : "+(x.v?parseFloat(x.v).toFixed(2)+"%":"-")),
+    "  Average        : "+(avg!==null?avg.toFixed(2)+"%":"-"),
+    "","UNSATISFACTORY BALES : "+bval+" ("+bl+")",
+    "","QUALITY SCORE    : "+qval.toFixed(1)+"/5 - "+l,
+    "","Voice note       : "+(vblob?"YES - recorded":"None"),
+    "","---","Generated by PfR Quality Control App"
+  ].join("\n");
+  window.location.href="mailto:?subject="+encodeURIComponent("PfR QC Report - "+ref)+"&body="+encodeURIComponent(body);
+}
+
+// ── Reset
+function resetAll(){
+  photos=[]; vblob=null; vurl=null; qref=null;
+  ["refinput","opinput","locinput","m1","m2","m3","m4","m5"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("refok").style.display="none";
+  document.getElementById("qrefok").style.display="none";
+  document.getElementById("refbadge").textContent=SID;
+  document.querySelectorAll(".pill").forEach(p=>p.classList.remove("sel"));
+  document.getElementById("vidle").style.display="block";
+  document.getElementById("vrec").style.display="none";
+  document.getElementById("vdone").style.display="none";
+  document.getElementById("skipvoice").style.display="block";
+  document.getElementById("r-vcard").style.display="none";
+  onMoist(); buildGrid(); BS.set(0); QS.set(2.5); goTo(0);
+}
+</script>
+</body>
+</html>
